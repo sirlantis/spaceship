@@ -66,36 +66,14 @@ module Spaceship
         theAccountPW: password
       })
 
-      if response['Set-Cookie'] =~ /myacinfo=(\w+);/
-        # To use the session properly we'll need the following cookies:
-        #  - myacinfo
-        #  - woinst
-        #  - wosid
-        #  - itctx
-        begin
-          re = response['Set-Cookie']
-
-          to_use = [
-            "myacinfo=" + re.match(/myacinfo=([^;]*)/)[1],
-            "woinst=" + re.match(/woinst=([^;]*)/)[1],
-            "itctx=" + re.match(/itctx=([^;]*)/)[1],
-            "wosid=" + re.match(/wosid=([^;]*)/)[1]
-          ]
-
-          @cookie = to_use.join(';')
-        rescue
-          raise ITunesConnectError.new, [response.body, response['Set-Cookie']].join("\n")
-        end
-
-        return @client
+      case response.status
+      when 302
+        return response
+      when 200
+        raise InvalidUserCredentialsError.new, "Invalid username and password combination. Used '#{user}' as the username."
       else
-        if (response.body || "").include?("Your Apple ID or password was entered incorrectly")
-          # User Credentials are wrong
-          raise InvalidUserCredentialsError.new, "Invalid username and password combination. Used '#{user}' as the username."
-        else
-          info = [response.body, response['Set-Cookie']]
-          raise ITunesConnectError.new, info.join("\n")
-        end
+        info = [response.body, response['Set-Cookie']]
+        raise ITunesConnectError.new, info.join("\n")
       end
     end
 
